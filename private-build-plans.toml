@@ -1,0 +1,69 @@
+[buildPlans.IosevkaCustom]
+family = "Iosevka Custom"
+spacing = "fontconfig-mono"
+serifs = "sans"
+noCvSs = true
+exportGlyphNames = true
+
+  [buildPlans.IosevkaCustom.variants]
+  inherits = "ss09"
+
+    [buildPlans.IosevkaCustom.variants.design]
+    punctuation-dot = "square"
+    braille-dot = "square"
+    percent = "dots"
+    lig-neq = "vertical-dotted"
+
+    [buildPlans.IosevkaCustom.variants.italic]
+    f = "extended"
+    k = "cursive-serifless"
+    punctuation-dot = "square"
+    braille-dot = "square"
+    percent = "dots"
+    lig-neq = "vertical-dotted"
+
+    [buildPlans.IosevkaCustom.variants.oblique]
+    punctuation-dot = "square"
+    braille-dot = "square"
+    percent = "dots"
+    lig-neq = "vertical-dotted"
+
+[buildPlans.IosevkaCustom.weights.Regular]
+shape = 400
+menu = 400
+css = 400
+
+[buildPlans.IosevkaCustom.weights.Bold]
+shape = 700
+menu = 700
+css = 700
+
+[buildPlans.IosevkaCustom.weights.ExtraLight]
+shape = 200
+menu = 200
+css = 200
+
+[buildPlans.IosevkaCustom.weights.Light]
+shape = 300
+menu = 300
+css = 300
+
+[buildPlans.IosevkaCustom.weights.Medium]
+shape = 500
+menu = 500
+css = 500
+
+[buildPlans.IosevkaCustom.weights.SemiBold]
+shape = 600
+menu = 600
+css = 600
+
+[buildPlans.IosevkaCustom.weights.Heavy]
+shape = 900
+menu = 900
+css = 900
+
+[buildPlans.IosevkaCustom.widths.Normal]
+shape = 600
+menu = 5
+css = "normal"

@@ -1,0 +1,121 @@
+name: Build IosevkaScp
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_name:
+        description: "Build plan name (buildPlans.<name> in private-build-plans.toml)"
+        required: false
+        default: "IosevkaScp"
+      build_target:
+        description: "Verda build target"
+        required: false
+        default: "ttf"
+        type: choice
+        options:
+          - ttf
+          - ttf-unhinted
+          - webfont
+          - woff2
+          - contents
+      create_release:
+        description: "Publish the built fonts as a GitHub release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write # only needed for the release step; harmless otherwise
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout this repo (for private-build-plans.toml)
+        uses: actions/checkout@v4
+
+      - name: Resolve latest Iosevka stable release
+        id: iosevka
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -sSL -w '\n%{http_code}' \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/be5invis/Iosevka/releases/latest)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          if [ "$http_code" != "200" ]; then
+            echo "GitHub API request failed with HTTP $http_code:" >&2
+            echo "$body" >&2
+            exit 1
+          fi
+          tag=$(echo "$body" | jq -r '.tag_name')
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "Response did not contain a tag_name:" >&2
+            echo "$body" >&2
+            exit 1
+          fi
+          echo "Building against Iosevka $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Iosevka source at ${{ steps.iosevka.outputs.tag }}
+        uses: actions/checkout@v4
+        with:
+          repository: be5invis/Iosevka
+          ref: ${{ steps.iosevka.outputs.tag }}
+          path: iosevka
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: iosevka/package-lock.json
+
+      - name: Install ttfautohint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ttfautohint
+          ttfautohint --version
+
+      - name: Drop in custom build plan
+        run: cp private-build-plans.toml iosevka/private-build-plans.toml
+
+      - name: Install Iosevka build dependencies
+        working-directory: iosevka
+        run: npm ci
+
+      - name: Build ${{ inputs.plan_name || 'IosevkaScp' }}
+        working-directory: iosevka
+        run: |
+          npm run build -- \
+            "${{ inputs.build_target || 'ttf' }}::${{ inputs.plan_name || 'IosevkaScp' }}" \
+            --jCmd=1
+
+      - name: Zip build output
+        working-directory: iosevka/dist
+        run: zip -r "../../${{ inputs.plan_name || 'IosevkaScp' }}.zip" "${{ inputs.plan_name || 'IosevkaScp' }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.plan_name || 'IosevkaScp' }}-${{ steps.iosevka.outputs.tag }}
+          path: ${{ inputs.plan_name || 'IosevkaScp' }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create release
+        if: ${{ inputs.create_release == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.plan_name || 'IosevkaScp' }}-${{ steps.iosevka.outputs.tag }}-${{ github.run_number }}
+          name: ${{ inputs.plan_name || 'IosevkaScp' }} (Iosevka ${{ steps.iosevka.outputs.tag }})
+          files: ${{ inputs.plan_name || 'IosevkaScp' }}.zip
